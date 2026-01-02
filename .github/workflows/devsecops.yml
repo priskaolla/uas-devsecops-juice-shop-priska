@@ -1,0 +1,66 @@
+name: DevSecOps CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  security-pipeline:
+    name: Security Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+    # =========================
+    # 1. Checkout Source Code
+    # =========================
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # =========================
+    # 2. Setup Node.js
+    # =========================
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    # =========================
+    # 3. Install Dependencies
+    # =========================
+    - name: Install dependencies
+      run: npm install
+
+    # =========================
+    # 4. SAST - npm audit
+    # =========================
+    - name: SAST - npm audit
+      run: |
+        npm audit --audit-level=high || true
+
+    # =========================
+    # 5. SCA - Trivy File System
+    # =========================
+    - name: SCA - Trivy FS Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: fs
+        scan-ref: .
+        severity: CRITICAL,HIGH
+
+    # =========================
+    # 6. Build Docker Image
+    # =========================
+    - name: Build Docker Image
+      run: |
+        docker build -t juice-shop:ci .
+
+    # =========================
+    # 7. Container Security Scan
+    # =========================
+    - name: Container Scan - Trivy Image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: juice-shop:ci
+        severity: CRITICAL,HIGH
